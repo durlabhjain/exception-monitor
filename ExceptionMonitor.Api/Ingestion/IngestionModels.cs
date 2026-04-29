@@ -1,0 +1,58 @@
+using System.Text.Json;
+
+namespace ExceptionMonitor.Api.Ingestion;
+
+public sealed record ExceptionRequest(
+    string? Error,
+    string? Message,
+    string? StackTrace,
+    string? ExceptionType,
+    DateTimeOffset? OccurredAt,
+    string? Severity,
+    string? Environment,
+    string? Source,
+    string? Release,
+    string? CorrelationId,
+    string? TraceId,
+    string? SpanId,
+    string? UserId,
+    string? UserHash,
+    ExceptionRequestInfo? Request,
+    IReadOnlyDictionary<string, string>? Tags,
+    JsonElement? Metadata,
+    string? Fingerprint);
+
+public sealed record ExceptionRequestInfo(
+    string? Method,
+    string? Url,
+    string? Route,
+    string? Referrer,
+    int? StatusCode,
+    string? IpAddress);
+
+public sealed record NormalizedExceptionEvent(
+    string Message,
+    string StackTrace,
+    string? ExceptionType,
+    DateTimeOffset OccurredAt,
+    string Severity,
+    string Environment,
+    string? Source,
+    string? Release,
+    string? CorrelationId,
+    string? TraceId,
+    string? SpanId,
+    string? UserHash,
+    string? RequestMethod,
+    string? RequestUrl,
+    string? RequestRoute,
+    string? RequestReferrer,
+    int? RequestStatusCode,
+    string PayloadFormat,
+    int PayloadSize,
+    IReadOnlyDictionary<string, string> Tags,
+    JsonElement Metadata,
+    JsonElement? RawPayload,
+    string Fingerprint);
+
+public sealed record IngestResponse(Guid EventId, Guid GroupId, string Fingerprint, string Status);

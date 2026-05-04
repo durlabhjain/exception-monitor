@@ -257,12 +257,20 @@ Expected response from `/`:
 
 ### 1. Create a Client (tenant)
 
-**macOS / Linux / Windows PowerShell:**
+**macOS / Linux:**
 ```bash
 curl -s -X POST http://localhost:5180/api/admin/clients \
   -H "X-Admin-Api-Key: dev-admin-key" \
   -H "Content-Type: application/json" \
-  -d "{\"name\": \"My Company\"}"
+  -d '{"name": "My Company"}'
+```
+
+**Windows PowerShell:**
+```powershell
+curl -s -X POST http://localhost:5180/api/admin/clients `
+  -H "X-Admin-Api-Key: dev-admin-key" `
+  -H "Content-Type: application/json" `
+  -d '{"name": "My Company"}'
 ```
 
 **Windows Command Prompt:**

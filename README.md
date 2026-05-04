@@ -47,3 +47,7 @@ or:
 ```text
 X-Exception-Api-Key: exm_<prefix>_<secret>
 ```
+
+## Setup & API Usage
+
+See [QUICKSETUP.md](QUICKSETUP.md) for full setup instructions, curl examples, and API reference.

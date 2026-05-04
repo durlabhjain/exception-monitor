@@ -98,7 +98,7 @@ public sealed class ApiKeyAuthenticator(IDbConnectionFactory db, IApiKeyHasher h
 
         var remote = remoteIp.MapToIPv4().ToString();
         return await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-            "select exists(select 1 from api_key_ip_allowlists where api_key_id = @ApiKeyId and cast(@RemoteIp as inet) <<=/ cidr)",
+            "select exists(select 1 from api_key_ip_allowlists where api_key_id = @ApiKeyId and cast(@RemoteIp as inet) <<= cidr)",
             new { ApiKeyId = apiKeyId, RemoteIp = remote }, cancellationToken: cancellationToken));
     }
 }

@@ -1,10 +1,25 @@
+# .NET
 bin/
 obj/
-.vs/
-.vscode/
-.idea/
 *.user
 *.suo
 appsettings.Local.json
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Frontend (SvelteKit)
+exception-monitor-ui/node_modules/
+exception-monitor-ui/.svelte-kit/
+exception-monitor-ui/build/
+exception-monitor-ui/.env
+exception-monitor-ui/.env.*
+
+# Tools
+.playwright-mcp/
+
+# OS
 .env
 .DS_Store

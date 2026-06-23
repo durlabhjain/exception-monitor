@@ -88,13 +88,15 @@ public sealed class IngestionRepository(IDbConnectionFactory db) : IIngestionRep
             "update exception_groups set last_event_id = @EventId where id = @GroupId",
             new { EventId = eventId, GroupId = groupId }, tx, cancellationToken: cancellationToken));
 
-        await QueueFirstSeenNotificationsAsync(connection, tx, apiKey.ApplicationId, groupId, eventId, exceptionEvent, cancellationToken);
+        var remoteIp = httpContext.Connection.RemoteIpAddress?.ToString();
+        await QueueFirstSeenNotificationsAsync(connection, tx, apiKey.ApplicationId, apiKey.ApplicationName, groupId, eventId, exceptionEvent, remoteIp, cancellationToken);
+        await QueueThresholdNotificationsAsync(connection, tx, apiKey.ApplicationId, apiKey.ApplicationName, groupId, eventId, exceptionEvent, remoteIp, cancellationToken);
 
         tx.Commit();
         return new IngestResponse(eventId, groupId, exceptionEvent.Fingerprint, "Accepted");
     }
 
-    private static async Task QueueFirstSeenNotificationsAsync(System.Data.IDbConnection connection, System.Data.IDbTransaction tx, Guid applicationId, Guid groupId, Guid eventId, NormalizedExceptionEvent exceptionEvent, CancellationToken cancellationToken)
+    private static async Task QueueFirstSeenNotificationsAsync(System.Data.IDbConnection connection, System.Data.IDbTransaction tx, Guid applicationId, string applicationName, Guid groupId, Guid eventId, NormalizedExceptionEvent exceptionEvent, string? remoteIp, CancellationToken cancellationToken)
     {
         await connection.ExecuteAsync(new CommandDefinition(
             @"
@@ -104,8 +106,8 @@ public sealed class IngestionRepository(IDbConnectionFactory db) : IIngestionRep
                    r.id,
                    @GroupId,
                    nr.type,
-                   concat('[', @Environment, '] ', @ExceptionType, ': ', left(@Message, 120)),
-                   concat('First seen error group ', @GroupId, E'\nEvent: ', @EventId, E'\n\n', @Message, E'\n\n', @StackTrace),
+                   concat('Error in ', @ApplicationName, ' - ', @Environment, ' - (', @OccurredAtUtc, ' UTC) - ', coalesce(@Source, '—')),
+                   @Body,
                    jsonb_build_object('eventId', @EventId, 'groupId', @GroupId, 'fingerprint', @Fingerprint)
             from notification_rules r
             inner join notification_recipients nr on nr.application_id = r.application_id and nr.is_active = true
@@ -119,13 +121,100 @@ public sealed class IngestionRepository(IDbConnectionFactory db) : IIngestionRep
             new
             {
                 ApplicationId = applicationId,
+                ApplicationName = applicationName,
+                OccurredAtUtc = exceptionEvent.OccurredAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss"),
                 GroupId = groupId,
                 EventId = eventId,
                 exceptionEvent.Environment,
                 ExceptionType = exceptionEvent.ExceptionType ?? "Exception",
                 exceptionEvent.Message,
                 exceptionEvent.StackTrace,
-                exceptionEvent.Fingerprint
+                exceptionEvent.Fingerprint,
+                Source = exceptionEvent.Source,
+                Body = BuildEmailBody(exceptionEvent, remoteIp)
             }, tx, cancellationToken: cancellationToken));
+    }
+
+    private static async Task QueueThresholdNotificationsAsync(System.Data.IDbConnection connection, System.Data.IDbTransaction tx, Guid applicationId, string applicationName, Guid groupId, Guid eventId, NormalizedExceptionEvent exceptionEvent, string? remoteIp, CancellationToken cancellationToken)
+    {
+        // Find all threshold rules whose count-in-window is now met, then insert deliveries and
+        // stamp notification_suppressed_until so the same group doesn't fire again during cooldown.
+        await connection.ExecuteAsync(new CommandDefinition(
+            @"
+            with matched_rules as (
+                select r.id          as rule_id,
+                       r.application_id,
+                       nr.id         as recipient_id,
+                       nr.type       as delivery_type,
+                       r.cooldown_minutes
+                from notification_rules r
+                inner join notification_recipients nr
+                    on nr.application_id = r.application_id and nr.is_active = true
+                inner join application_environments env
+                    on env.application_id = r.application_id
+                   and lower(env.name) = @Environment
+                   and env.notifications_enabled = true
+                inner join exception_groups g on g.id = @GroupId
+                where r.application_id = @ApplicationId
+                  and r.is_active = true
+                  and r.event_type = 'Threshold'
+                  and (r.environment is null or lower(r.environment) = @Environment)
+                  and r.threshold_count is not null
+                  and r.threshold_window_minutes is not null
+                  and (g.notification_suppressed_until is null or g.notification_suppressed_until < now())
+                  and (
+                      select count(*)
+                      from exception_events e
+                      where e.group_id = @GroupId
+                        and e.received_at >= now() - make_interval(mins => r.threshold_window_minutes)
+                  ) >= r.threshold_count
+            ),
+            inserted as (
+                insert into notification_deliveries(application_id, recipient_id, rule_id, group_id, delivery_type, subject, body, payload)
+                select application_id,
+                       recipient_id,
+                       rule_id,
+                       @GroupId,
+                       delivery_type,
+                       concat('Error in ', @ApplicationName, ' - ', @Environment, ' - (', @OccurredAtUtc, ' UTC) - ', coalesce(@Source, '—')),
+                       @Body,
+                       jsonb_build_object('eventId', @EventId, 'groupId', @GroupId, 'fingerprint', @Fingerprint)
+                from matched_rules
+                returning id
+            )
+            update exception_groups
+            set notification_suppressed_until = now() + make_interval(mins => (select min(cooldown_minutes) from matched_rules))
+            where id = @GroupId
+              and exists (select 1 from inserted)",
+            new
+            {
+                ApplicationId = applicationId,
+                ApplicationName = applicationName,
+                OccurredAtUtc = exceptionEvent.OccurredAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                GroupId = groupId,
+                EventId = eventId,
+                exceptionEvent.Environment,
+                ExceptionType = exceptionEvent.ExceptionType ?? "Exception",
+                exceptionEvent.Message,
+                exceptionEvent.StackTrace,
+                exceptionEvent.Fingerprint,
+                Source = exceptionEvent.Source,
+                Body = BuildEmailBody(exceptionEvent, remoteIp)
+            }, tx, cancellationToken: cancellationToken));
+    }
+
+    private static string BuildEmailBody(NormalizedExceptionEvent e, string? remoteIp)
+    {
+        static string Val(string? v) => string.IsNullOrWhiteSpace(v) ? "—" : v;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Method   : {Val(e.RequestMethod)}");
+        sb.AppendLine($"URL      : {Val(e.RequestUrl)}");
+        sb.AppendLine($"IP       : {Val(remoteIp)}");
+        sb.AppendLine($"User     : {Val(e.UserName)}");
+        sb.AppendLine($"Route    : {Val(e.RequestRoute)}");
+        sb.AppendLine($"Referrer : {Val(e.RequestReferrer)}");
+        sb.AppendLine();
+        sb.AppendLine(e.StackTrace);
+        return sb.ToString();
     }
 }

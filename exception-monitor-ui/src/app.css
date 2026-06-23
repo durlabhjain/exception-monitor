@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+	font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+}
+
+code, pre, .font-mono {
+	font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+}

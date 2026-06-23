@@ -13,7 +13,9 @@ public static class UserEndpoints
         group.MapGet("", async (IDbConnectionFactory db, CancellationToken ct) =>
         {
             using var connection = await db.OpenConnectionAsync(ct);
-            return Results.Ok(await connection.QueryAsync(new CommandDefinition("select id, email, display_name as DisplayName, is_active as IsActive from users order by email", cancellationToken: ct)));
+            return Results.Ok(await connection.QueryAsync(new CommandDefinition(
+                "select id, email, display_name as \"displayName\", is_active as \"isActive\" from users order by email",
+                cancellationToken: ct)));
         });
 
         group.MapPost("", async (CreateUserRequest request, IDbConnectionFactory db, CancellationToken ct) =>
@@ -22,7 +24,7 @@ public static class UserEndpoints
             var row = await connection.QuerySingleAsync(new CommandDefinition(
                 @"insert into users(email, display_name) values(lower(@Email), @DisplayName)
                   on conflict(email) do update set display_name = excluded.display_name, updated_at = now()
-                  returning id, email, display_name as DisplayName, is_active as IsActive",
+                  returning id, email, display_name as ""displayName"", is_active as ""isActive""",
                 request, cancellationToken: ct));
             return Results.Ok(row);
         });
@@ -33,7 +35,7 @@ public static class UserEndpoints
             var row = await connection.QuerySingleAsync(new CommandDefinition(
                 @"insert into user_client_access(user_id, client_id, role, all_applications) values(@UserId, @ClientId, @Role, @AllApplications)
                   on conflict(user_id, client_id) do update set role = excluded.role, all_applications = excluded.all_applications
-                  returning id, user_id as UserId, client_id as ClientId, role, all_applications as AllApplications",
+                  returning id, user_id as ""userId"", client_id as ""clientId"", role, all_applications as ""allApplications""",
                 request, cancellationToken: ct));
             return Results.Ok(row);
         });
@@ -44,7 +46,7 @@ public static class UserEndpoints
             var row = await connection.QuerySingleAsync(new CommandDefinition(
                 @"insert into user_application_access(user_id, application_id, role) values(@UserId, @ApplicationId, @Role)
                   on conflict(user_id, application_id) do update set role = excluded.role
-                  returning id, user_id as UserId, application_id as ApplicationId, role",
+                  returning id, user_id as ""userId"", application_id as ""applicationId"", role",
                 request, cancellationToken: ct));
             return Results.Ok(row);
         });

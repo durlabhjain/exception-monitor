@@ -20,7 +20,14 @@ public sealed record ExceptionRequest(
     ExceptionRequestInfo? Request,
     IReadOnlyDictionary<string, string>? Tags,
     JsonElement? Metadata,
-    string? Fingerprint);
+    string? Fingerprint,
+    // Flat alternatives — NLog/loggers that can't produce nested JSON send these at root level
+    string? Method,
+    string? Url,
+    string? Route,
+    string? Referrer,
+    int? StatusCode,
+    string? UserName);
 
 public sealed record ExceptionRequestInfo(
     string? Method,
@@ -48,6 +55,7 @@ public sealed record NormalizedExceptionEvent(
     string? RequestRoute,
     string? RequestReferrer,
     int? RequestStatusCode,
+    string? UserName,
     string PayloadFormat,
     int PayloadSize,
     IReadOnlyDictionary<string, string> Tags,

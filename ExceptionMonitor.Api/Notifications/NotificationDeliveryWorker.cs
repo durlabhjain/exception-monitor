@@ -1,6 +1,7 @@
 using Dapper;
 using ExceptionMonitor.Api.Database;
 using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
 
@@ -92,7 +93,10 @@ public sealed class NotificationDeliveryWorker(
         message.Body = new TextPart("plain") { Text = delivery.Body };
 
         using var client = new SmtpClient();
-        await client.ConnectAsync(smtpOptions.Value.Host, smtpOptions.Value.Port, smtpOptions.Value.UseSsl, cancellationToken);
+        var socketOptions = smtpOptions.Value.UseSsl
+            ? (smtpOptions.Value.Port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls)
+            : SecureSocketOptions.None;
+        await client.ConnectAsync(smtpOptions.Value.Host, smtpOptions.Value.Port, socketOptions, cancellationToken);
         if (!string.IsNullOrWhiteSpace(smtpOptions.Value.Username))
         {
             await client.AuthenticateAsync(smtpOptions.Value.Username, smtpOptions.Value.Password ?? string.Empty, cancellationToken);

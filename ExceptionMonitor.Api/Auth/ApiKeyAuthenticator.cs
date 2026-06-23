@@ -1,6 +1,6 @@
 using System.Net;
 using Dapper;
-using ExceptionMonitor.Api.Database;
+using ExceptionMonitor.Api.Database;x`
 
 namespace ExceptionMonitor.Api.Auth;
 
@@ -9,24 +9,29 @@ public interface IApiKeyAuthenticator
     Task<ApiKeyContext?> AuthenticateAsync(HttpContext httpContext, CancellationToken cancellationToken);
 }
 
-public sealed class ApiKeyAuthenticator(IDbConnectionFactory db, IApiKeyHasher hasher) : IApiKeyAuthenticator
+public sealed class ApiKeyAuthenticator(IDbConnectionFactory db, IApiKeyHasher hasher, ILogger<ApiKeyAuthenticator> logger) : IApiKeyAuthenticator
 {
     public async Task<ApiKeyContext?> AuthenticateAsync(HttpContext httpContext, CancellationToken cancellationToken)
     {
         var key = ReadApiKey(httpContext.Request);
         if (string.IsNullOrWhiteSpace(key))
         {
+            logger.LogDebug("ApiKey auth failed: no key found in request headers");
             return null;
         }
 
         var parts = key.Split('_', 3, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 3 || parts[0] != "exm")
         {
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("ApiKey auth failed: invalid key format (parts={Count}, firstPart={FirstPart})", parts.Length, parts.Length > 0 ? parts[0] : "<empty>");
             return null;
         }
 
         var prefix = parts[1];
         var hash = hasher.Hash(key);
+        if (logger.IsEnabled(LogLevel.Debug))
+            logger.LogDebug("ApiKey lookup: prefix={Prefix}, hash={Hash}", prefix, hash);
 
         using var connection = await db.OpenConnectionAsync(cancellationToken);
         var context = await connection.QuerySingleOrDefaultAsync<ApiKeyContext>(new CommandDefinition(
@@ -55,11 +60,15 @@ public sealed class ApiKeyAuthenticator(IDbConnectionFactory db, IApiKeyHasher h
 
         if (context is null)
         {
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("ApiKey auth failed: no row matched prefix={Prefix} — hash mismatch, inactive, expired, or revoked", prefix);
             return null;
         }
 
         if (!context.AllowAllIps && !await IsIpAllowedAsync(connection, context.ApiKeyId, httpContext.Connection.RemoteIpAddress, cancellationToken))
         {
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("ApiKey auth failed: IP not in allowlist for key {ApiKeyId}", context.ApiKeyId);
             return null;
         }
 

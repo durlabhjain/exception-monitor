@@ -23,12 +23,15 @@ builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Se
 builder.Services.Configure<IngestionOptions>(builder.Configuration.GetSection("Ingestion"));
 builder.Services.Configure<NotificationOptions>(builder.Configuration.GetSection("Notifications"));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection("Google"));
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
 builder.Services.AddSingleton(NpgsqlDataSource.Create(postgresConnectionString));
 builder.Services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
 builder.Services.AddSingleton<IApiKeyHasher, HmacApiKeyHasher>();
 builder.Services.AddSingleton<IApiKeyGenerator, ApiKeyGenerator>();
 builder.Services.AddScoped<IApiKeyAuthenticator, ApiKeyAuthenticator>();
+builder.Services.AddSingleton<IJwtService, JwtService>();
 builder.Services.AddScoped<IIngestionNormalizer, IngestionNormalizer>();
 builder.Services.AddScoped<IIngestionRepository, IngestionRepository>();
 builder.Services.AddSingleton<IFingerprintService, FingerprintService>();
@@ -40,6 +43,17 @@ builder.Services.AddHostedService<RetentionCleanupWorker>();
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
+
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendDev", policy =>
+        policy.WithOrigins("http://localhost:5174", "http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials());
+});
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -73,6 +87,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseSerilogRequestLogging();
+app.UseCors("FrontendDev");
 app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
@@ -83,6 +98,7 @@ if (app.Environment.IsDevelopment())
 app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Ok(new { Service = "ExceptionMonitor.Api", Status = "Running" })).ExcludeFromDescription();
 
+app.MapAuthEndpoints();
 app.MapIngestionEndpoints();
 app.MapApplicationEndpoints();
 app.MapEventQueryEndpoints();

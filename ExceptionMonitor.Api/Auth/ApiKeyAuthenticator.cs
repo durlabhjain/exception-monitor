@@ -1,6 +1,6 @@
 using System.Net;
 using Dapper;
-using ExceptionMonitor.Api.Database;x`
+using ExceptionMonitor.Api.Database;
 
 namespace ExceptionMonitor.Api.Auth;
 

@@ -46,10 +46,13 @@ builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
 
 
+var frontendUrl = builder.Configuration["FrontendUrl"]
+    ?? throw new InvalidOperationException("FrontendUrl is required.");
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("FrontendDev", policy =>
-        policy.WithOrigins("http://localhost:5174", "http://localhost:5173")
+    options.AddPolicy("Frontend", policy =>
+        policy.WithOrigins(frontendUrl)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials());
@@ -87,7 +90,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseSerilogRequestLogging();
-app.UseCors("FrontendDev");
+app.UseCors("Frontend");
 app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())

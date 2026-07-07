@@ -10,7 +10,7 @@ const STORAGE_KEY = 'exception_monitor_settings';
 
 const defaults: Settings = {
 	adminApiKey: 'dev-admin-key',
-	apiBaseUrl: 'http://localhost:5180'
+	apiBaseUrl: import.meta.env.VITE_BACKEND_URL || 'http://localhost:5180'
 };
 
 function createSettings() {

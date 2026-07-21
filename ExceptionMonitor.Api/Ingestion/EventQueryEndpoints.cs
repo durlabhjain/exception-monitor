@@ -92,6 +92,8 @@ public static class EventQueryEndpoints
                          user_hash as ""userHash"", request_method as ""requestMethod"",
                          request_url as ""requestUrl"", request_route as ""requestRoute"", request_referrer as ""requestReferrer"",
                          request_status_code as ""requestStatusCode"", host(remote_ip) as ""remoteIp"", user_agent as ""userAgent"",
+                         request_headers::text as ""requestHeaders"", request_params::text as ""requestParams"",
+                         request_body::text as ""requestBody"", query_string::text as ""queryString"",
                          tags::text as ""tags"", metadata::text as ""metadata"", raw_payload::text as ""rawPayload""
                   from exception_events where id = @Id",
                 new { Id = id }, cancellationToken: ct));

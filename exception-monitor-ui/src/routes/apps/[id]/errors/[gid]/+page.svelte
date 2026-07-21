@@ -55,7 +55,11 @@
 				...raw,
 				tags: typeof raw.tags === 'string' ? JSON.parse(raw.tags) : (raw.tags ?? {}),
 				metadata: typeof raw.metadata === 'string' ? JSON.parse(raw.metadata) : (raw.metadata ?? {}),
-				rawPayload: typeof raw.rawPayload === 'string' ? JSON.parse(raw.rawPayload) : raw.rawPayload
+				rawPayload: typeof raw.rawPayload === 'string' ? JSON.parse(raw.rawPayload) : raw.rawPayload,
+				requestHeaders: typeof raw.requestHeaders === 'string' ? JSON.parse(raw.requestHeaders) : raw.requestHeaders,
+				requestParams: typeof raw.requestParams === 'string' ? JSON.parse(raw.requestParams) : raw.requestParams,
+				requestBody: typeof raw.requestBody === 'string' ? JSON.parse(raw.requestBody) : raw.requestBody,
+				queryString: typeof raw.queryString === 'string' ? JSON.parse(raw.queryString) : raw.queryString
 			};
 		} catch (e: any) {
 			toasts.error(e.message ?? 'Failed to load event');
@@ -328,6 +332,34 @@
 											</div>
 										{/if}
 									</dl>
+
+									{#if selectedEvent.requestHeaders && JSON.stringify(selectedEvent.requestHeaders) !== '{}'}
+										<div>
+											<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Request Headers</h4>
+											<pre class="bg-slate-900 text-slate-100 text-xs p-4 rounded-xl overflow-x-auto max-h-64 font-mono">{JSON.stringify(selectedEvent.requestHeaders, null, 2)}</pre>
+										</div>
+									{/if}
+
+									{#if selectedEvent.queryString && JSON.stringify(selectedEvent.queryString) !== '{}'}
+										<div>
+											<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Query String</h4>
+											<pre class="bg-slate-900 text-slate-100 text-xs p-4 rounded-xl overflow-x-auto max-h-64 font-mono">{JSON.stringify(selectedEvent.queryString, null, 2)}</pre>
+										</div>
+									{/if}
+
+									{#if selectedEvent.requestParams && JSON.stringify(selectedEvent.requestParams) !== '{}'}
+										<div>
+											<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Route Params</h4>
+											<pre class="bg-slate-900 text-slate-100 text-xs p-4 rounded-xl overflow-x-auto max-h-64 font-mono">{JSON.stringify(selectedEvent.requestParams, null, 2)}</pre>
+										</div>
+									{/if}
+
+									{#if selectedEvent.requestBody && JSON.stringify(selectedEvent.requestBody) !== '{}'}
+										<div>
+											<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Body</h4>
+											<pre class="bg-slate-900 text-slate-100 text-xs p-4 rounded-xl overflow-x-auto max-h-64 font-mono">{JSON.stringify(selectedEvent.requestBody, null, 2)}</pre>
+										</div>
+									{/if}
 								</div>
 							{:else}
 								<div class="flex flex-col items-center justify-center py-16 text-slate-400">

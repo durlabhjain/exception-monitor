@@ -27,6 +27,19 @@ public sealed class IngestionNormalizer(IFingerprintService fingerprints) : IIng
     {
         var form = await context.Request.ReadFormAsync(cancellationToken);
         string? Get(params string[] names) => names.Select(name => form.TryGetValue(name, out var value) ? value.ToString() : null).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        JsonElement? GetJson(params string[] names)
+        {
+            var raw = Get(names);
+            if (raw is null) return null;
+            try
+            {
+                return JsonSerializer.Deserialize<JsonElement>(raw, JsonOptions);
+            }
+            catch (JsonException)
+            {
+                return JsonSerializer.SerializeToElement(raw, JsonOptions);
+            }
+        }
 
         var metadata = new Dictionary<string, object?>();
         foreach (var field in form)
@@ -59,7 +72,11 @@ public sealed class IngestionNormalizer(IFingerprintService fingerprints) : IIng
             Tags: null,
             Metadata: JsonSerializer.SerializeToElement(metadata, JsonOptions),
             Fingerprint: Get("fingerprint", "Fingerprint"),
-            Method: null, Url: null, Route: null, Referrer: null, StatusCode: null, UserName: Get("userName", "UserName", "Username"));
+            Method: null, Url: null, Route: null, Referrer: null, StatusCode: null, UserName: Get("userName", "UserName", "Username"),
+            RequestHeaders: GetJson("requestHeaders", "RequestHeaders"),
+            RequestParams: GetJson("requestParams", "RequestParams"),
+            RequestBody: GetJson("requestBody", "RequestBody"),
+            QueryString: GetJson("queryString", "QueryString"));
 
         return Normalize(request, apiKey, "form", (int)(context.Request.ContentLength ?? 0), JsonSerializer.SerializeToElement(metadata, JsonOptions));
     }
@@ -99,6 +116,10 @@ public sealed class IngestionNormalizer(IFingerprintService fingerprints) : IIng
             requestInfo?.Referrer,
             requestInfo?.StatusCode,
             request.UserName,
+            request.RequestHeaders,
+            request.RequestParams,
+            request.RequestBody,
+            request.QueryString,
             format,
             payloadSize,
             request.Tags ?? new Dictionary<string, string>(),

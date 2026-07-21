@@ -27,7 +27,12 @@ public sealed record ExceptionRequest(
     string? Route,
     string? Referrer,
     int? StatusCode,
-    string? UserName);
+    string? UserName,
+    // Sent flat by pino-http-send.mjs alongside the fields above
+    JsonElement? RequestHeaders,
+    JsonElement? RequestParams,
+    JsonElement? RequestBody,
+    JsonElement? QueryString);
 
 public sealed record ExceptionRequestInfo(
     string? Method,
@@ -56,6 +61,10 @@ public sealed record NormalizedExceptionEvent(
     string? RequestReferrer,
     int? RequestStatusCode,
     string? UserName,
+    JsonElement? RequestHeaders,
+    JsonElement? RequestParams,
+    JsonElement? RequestBody,
+    JsonElement? QueryString,
     string PayloadFormat,
     int PayloadSize,
     IReadOnlyDictionary<string, string> Tags,

@@ -549,6 +549,6 @@ FROM api_keys;
 | `requestBody` | object | no | Request body |
 | `queryString` | object | no | Query string params (e.g. Express `req.query`) |
 
-> `requestHeaders`, `requestParams`, `requestBody`, and `queryString` are flat top-level fields (siblings of `message`/`request`, not nested under `request`). For JSON ingestion, send them as JSON objects. For form ingestion, send them as JSON-encoded strings (the same way `pino-http-send.mjs` does via `toURLSearchParams`) — they are parsed back into JSON on ingest.
+> `requestHeaders`, `requestParams`, `requestBody`, and `queryString` are flat top-level fields (siblings of `message`/`request`, not nested under `request`). For JSON ingestion, send them as JSON objects. For form ingestion, send them as JSON-encoded strings (e.g. via `URLSearchParams`) — they are parsed back into JSON on ingest.
 
 ---

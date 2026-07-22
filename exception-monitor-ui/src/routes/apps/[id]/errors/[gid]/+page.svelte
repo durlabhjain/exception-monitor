@@ -333,28 +333,28 @@
 										{/if}
 									</dl>
 
-									{#if selectedEvent.requestHeaders && JSON.stringify(selectedEvent.requestHeaders) !== '{}'}
+									{#if selectedEvent.requestHeaders != null && JSON.stringify(selectedEvent.requestHeaders) !== '{}'}
 										<div>
 											<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Request Headers</h4>
 											<pre class="bg-slate-900 text-slate-100 text-xs p-4 rounded-xl overflow-x-auto max-h-64 font-mono">{JSON.stringify(selectedEvent.requestHeaders, null, 2)}</pre>
 										</div>
 									{/if}
 
-									{#if selectedEvent.queryString && JSON.stringify(selectedEvent.queryString) !== '{}'}
+									{#if selectedEvent.queryString != null && JSON.stringify(selectedEvent.queryString) !== '{}'}
 										<div>
 											<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Query String</h4>
 											<pre class="bg-slate-900 text-slate-100 text-xs p-4 rounded-xl overflow-x-auto max-h-64 font-mono">{JSON.stringify(selectedEvent.queryString, null, 2)}</pre>
 										</div>
 									{/if}
 
-									{#if selectedEvent.requestParams && JSON.stringify(selectedEvent.requestParams) !== '{}'}
+									{#if selectedEvent.requestParams != null && JSON.stringify(selectedEvent.requestParams) !== '{}'}
 										<div>
 											<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Route Params</h4>
 											<pre class="bg-slate-900 text-slate-100 text-xs p-4 rounded-xl overflow-x-auto max-h-64 font-mono">{JSON.stringify(selectedEvent.requestParams, null, 2)}</pre>
 										</div>
 									{/if}
 
-									{#if selectedEvent.requestBody && JSON.stringify(selectedEvent.requestBody) !== '{}'}
+									{#if selectedEvent.requestBody != null && JSON.stringify(selectedEvent.requestBody) !== '{}'}
 										<div>
 											<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Body</h4>
 											<pre class="bg-slate-900 text-slate-100 text-xs p-4 rounded-xl overflow-x-auto max-h-64 font-mono">{JSON.stringify(selectedEvent.requestBody, null, 2)}</pre>

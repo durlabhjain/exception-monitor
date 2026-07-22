@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ExceptionMonitor.Api.Auth;
+using Microsoft.Extensions.Options;
 
 namespace ExceptionMonitor.Api.Ingestion;
 
@@ -11,16 +12,18 @@ public interface IIngestionNormalizer
     Task<NormalizedExceptionEvent?> NormalizeFormAsync(HttpContext context, ApiKeyContext apiKey, CancellationToken cancellationToken);
 }
 
-public sealed class IngestionNormalizer(IFingerprintService fingerprints) : IIngestionNormalizer
+public sealed class IngestionNormalizer(IFingerprintService fingerprints, IOptions<RedactionOptions> redactionOptions) : IIngestionNormalizer
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly RedactionOptions redaction = redactionOptions.Value;
 
     public async Task<NormalizedExceptionEvent?> NormalizeJsonAsync(HttpContext context, ApiKeyContext apiKey, CancellationToken cancellationToken)
     {
         var request = await JsonSerializer.DeserializeAsync<ExceptionRequest>(context.Request.Body, JsonOptions, cancellationToken);
         if (request is null) return null;
-        var raw = JsonSerializer.SerializeToElement(request, JsonOptions);
-        return Normalize(request, apiKey, "json", (int)(context.Request.ContentLength ?? 0), raw);
+        var redacted = RedactRequest(request);
+        var raw = JsonSerializer.SerializeToElement(redacted, JsonOptions);
+        return Normalize(redacted, apiKey, "json", (int)(context.Request.ContentLength ?? 0), raw);
     }
 
     public async Task<NormalizedExceptionEvent?> NormalizeFormAsync(HttpContext context, ApiKeyContext apiKey, CancellationToken cancellationToken)
@@ -78,8 +81,17 @@ public sealed class IngestionNormalizer(IFingerprintService fingerprints) : IIng
             RequestBody: GetJson("requestBody", "RequestBody"),
             QueryString: GetJson("queryString", "QueryString"));
 
-        return Normalize(request, apiKey, "form", (int)(context.Request.ContentLength ?? 0), JsonSerializer.SerializeToElement(metadata, JsonOptions));
+        var redacted = RedactRequest(request);
+        return Normalize(redacted, apiKey, "form", (int)(context.Request.ContentLength ?? 0), JsonSerializer.SerializeToElement(metadata, JsonOptions));
     }
+
+    private ExceptionRequest RedactRequest(ExceptionRequest request) => request with
+    {
+        RequestHeaders = SensitiveDataRedactor.RedactHeaders(request.RequestHeaders, redaction),
+        RequestParams = SensitiveDataRedactor.RedactFields(request.RequestParams, redaction),
+        RequestBody = SensitiveDataRedactor.RedactFields(request.RequestBody, redaction),
+        QueryString = SensitiveDataRedactor.RedactFields(request.QueryString, redaction)
+    };
 
     private NormalizedExceptionEvent Normalize(ExceptionRequest request, ApiKeyContext apiKey, string format, int payloadSize, JsonElement rawPayload)
     {

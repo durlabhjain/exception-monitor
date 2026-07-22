@@ -28,7 +28,7 @@ public sealed record ExceptionRequest(
     string? Referrer,
     int? StatusCode,
     string? UserName,
-    // Sent flat by pino-http-send.mjs alongside the fields above
+    // Sent flat by HTTP-logging client SDKs (e.g. pino transports) alongside the fields above
     JsonElement? RequestHeaders,
     JsonElement? RequestParams,
     JsonElement? RequestBody,

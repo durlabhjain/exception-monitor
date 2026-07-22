@@ -45,11 +45,13 @@ public sealed class IngestionRepository(IDbConnectionFactory db) : IIngestionRep
             insert into exception_events(
                 client_id, application_id, api_key_id, group_id, environment, severity, exception_type, message, stack_trace, fingerprint,
                 occurred_at, source, release, correlation_id, trace_id, span_id, user_hash, request_method, request_url, request_route,
-                request_referrer, request_status_code, remote_ip, user_agent, payload_format, payload_size, tags, metadata, raw_payload)
+                request_referrer, request_status_code, remote_ip, user_agent, request_headers, request_params, request_body, query_string,
+                payload_format, payload_size, tags, metadata, raw_payload)
             values(
                 @ClientId, @ApplicationId, @ApiKeyId, @GroupId, @Environment, @Severity, @ExceptionType, @Message, @StackTrace, @Fingerprint,
                 @OccurredAt, @Source, @Release, @CorrelationId, @TraceId, @SpanId, @UserHash, @RequestMethod, @RequestUrl, @RequestRoute,
-                @RequestReferrer, @RequestStatusCode, cast(@RemoteIp as inet), @UserAgent, @PayloadFormat, @PayloadSize, cast(@Tags as jsonb), cast(@Metadata as jsonb), cast(@RawPayload as jsonb))
+                @RequestReferrer, @RequestStatusCode, cast(@RemoteIp as inet), @UserAgent, cast(@RequestHeaders as jsonb), cast(@RequestParams as jsonb),
+                cast(@RequestBody as jsonb), cast(@QueryString as jsonb), @PayloadFormat, @PayloadSize, cast(@Tags as jsonb), cast(@Metadata as jsonb), cast(@RawPayload as jsonb))
             returning id",
             new
             {
@@ -77,6 +79,10 @@ public sealed class IngestionRepository(IDbConnectionFactory db) : IIngestionRep
                 exceptionEvent.RequestStatusCode,
                 RemoteIp = httpContext.Connection.RemoteIpAddress?.ToString(),
                 UserAgent = httpContext.Request.Headers.UserAgent.ToString(),
+                RequestHeaders = exceptionEvent.RequestHeaders?.GetRawText(),
+                RequestParams = exceptionEvent.RequestParams?.GetRawText(),
+                RequestBody = exceptionEvent.RequestBody?.GetRawText(),
+                QueryString = exceptionEvent.QueryString?.GetRawText(),
                 exceptionEvent.PayloadFormat,
                 exceptionEvent.PayloadSize,
                 Tags = JsonSerializer.Serialize(exceptionEvent.Tags),

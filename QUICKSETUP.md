@@ -358,7 +358,7 @@ Save `groupId` for the next steps.
 curl -s -X POST http://localhost:5180/api/ingest \
   -H "X-Exception-Api-Key: exm_abc123_xxxxxxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
-  -d "{\"message\": \"Database connection timeout\", \"exceptionType\": \"SqlException\", \"stackTrace\": \"at MyApp.Data.DbContext.SaveChanges() in DbContext.cs:line 88\", \"severity\": \"Critical\", \"environment\": \"production\", \"correlationId\": \"req-abc-123\", \"request\": {\"method\": \"POST\", \"url\": \"https://api.myapp.com/orders\", \"route\": \"/orders\", \"statusCode\": 500}, \"tags\": {\"team\": \"backend\"}}"
+  -d "{\"message\": \"Database connection timeout\", \"exceptionType\": \"SqlException\", \"stackTrace\": \"at MyApp.Data.DbContext.SaveChanges() in DbContext.cs:line 88\", \"severity\": \"Critical\", \"environment\": \"production\", \"correlationId\": \"req-abc-123\", \"request\": {\"method\": \"POST\", \"url\": \"https://api.myapp.com/orders\", \"route\": \"/orders\", \"statusCode\": 500}, \"requestHeaders\": {\"content-type\": \"application/json\"}, \"requestParams\": {\"orderId\": \"42\"}, \"requestBody\": {\"items\": 3}, \"queryString\": {\"source\": \"checkout\"}, \"tags\": {\"team\": \"backend\"}}"
 ```
 
 ---
@@ -544,5 +544,11 @@ FROM api_keys;
 | `request.url` | string | no | Full request URL |
 | `request.route` | string | no | Route template |
 | `request.statusCode` | int | no | HTTP status code |
+| `requestHeaders` | object | no | Request headers, keyed by header name |
+| `requestParams` | object | no | Route/path params (e.g. Express `req.params`) |
+| `requestBody` | object | no | Request body |
+| `queryString` | object | no | Query string params (e.g. Express `req.query`) |
+
+> `requestHeaders`, `requestParams`, `requestBody`, and `queryString` are flat top-level fields (siblings of `message`/`request`, not nested under `request`). For JSON ingestion, send them as JSON objects. For form ingestion, send them as JSON-encoded strings (e.g. via `URLSearchParams`) — they are parsed back into JSON on ingest.
 
 ---

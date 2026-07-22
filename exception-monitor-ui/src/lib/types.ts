@@ -76,6 +76,10 @@ export interface ExceptionEvent {
 	requestStatusCode: number | null;
 	remoteIp: string | null;
 	userAgent: string | null;
+	requestHeaders: unknown;
+	requestParams: unknown;
+	requestBody: unknown;
+	queryString: unknown;
 	tags: Record<string, string> | string;
 	metadata: unknown;
 	rawPayload: unknown;

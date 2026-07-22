@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ExceptionMonitor.Api.Auth;
+using Microsoft.Extensions.Options;
 
 namespace ExceptionMonitor.Api.Ingestion;
 
@@ -11,22 +12,37 @@ public interface IIngestionNormalizer
     Task<NormalizedExceptionEvent?> NormalizeFormAsync(HttpContext context, ApiKeyContext apiKey, CancellationToken cancellationToken);
 }
 
-public sealed class IngestionNormalizer(IFingerprintService fingerprints) : IIngestionNormalizer
+public sealed class IngestionNormalizer(IFingerprintService fingerprints, IOptions<RedactionOptions> redactionOptions) : IIngestionNormalizer
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly RedactionOptions redaction = redactionOptions.Value;
 
     public async Task<NormalizedExceptionEvent?> NormalizeJsonAsync(HttpContext context, ApiKeyContext apiKey, CancellationToken cancellationToken)
     {
         var request = await JsonSerializer.DeserializeAsync<ExceptionRequest>(context.Request.Body, JsonOptions, cancellationToken);
         if (request is null) return null;
-        var raw = JsonSerializer.SerializeToElement(request, JsonOptions);
-        return Normalize(request, apiKey, "json", (int)(context.Request.ContentLength ?? 0), raw);
+        var redacted = RedactRequest(request);
+        var raw = JsonSerializer.SerializeToElement(redacted, JsonOptions);
+        return Normalize(redacted, apiKey, "json", (int)(context.Request.ContentLength ?? 0), raw);
     }
 
     public async Task<NormalizedExceptionEvent?> NormalizeFormAsync(HttpContext context, ApiKeyContext apiKey, CancellationToken cancellationToken)
     {
         var form = await context.Request.ReadFormAsync(cancellationToken);
         string? Get(params string[] names) => names.Select(name => form.TryGetValue(name, out var value) ? value.ToString() : null).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        JsonElement? GetJson(params string[] names)
+        {
+            var raw = Get(names);
+            if (raw is null) return null;
+            try
+            {
+                return JsonSerializer.Deserialize<JsonElement>(raw, JsonOptions);
+            }
+            catch (JsonException)
+            {
+                return JsonSerializer.SerializeToElement(raw, JsonOptions);
+            }
+        }
 
         var metadata = new Dictionary<string, object?>();
         foreach (var field in form)
@@ -59,10 +75,23 @@ public sealed class IngestionNormalizer(IFingerprintService fingerprints) : IIng
             Tags: null,
             Metadata: JsonSerializer.SerializeToElement(metadata, JsonOptions),
             Fingerprint: Get("fingerprint", "Fingerprint"),
-            Method: null, Url: null, Route: null, Referrer: null, StatusCode: null, UserName: Get("userName", "UserName", "Username"));
+            Method: null, Url: null, Route: null, Referrer: null, StatusCode: null, UserName: Get("userName", "UserName", "Username"),
+            RequestHeaders: GetJson("requestHeaders", "RequestHeaders"),
+            RequestParams: GetJson("requestParams", "RequestParams"),
+            RequestBody: GetJson("requestBody", "RequestBody"),
+            QueryString: GetJson("queryString", "QueryString"));
 
-        return Normalize(request, apiKey, "form", (int)(context.Request.ContentLength ?? 0), JsonSerializer.SerializeToElement(metadata, JsonOptions));
+        var redacted = RedactRequest(request);
+        return Normalize(redacted, apiKey, "form", (int)(context.Request.ContentLength ?? 0), JsonSerializer.SerializeToElement(metadata, JsonOptions));
     }
+
+    private ExceptionRequest RedactRequest(ExceptionRequest request) => request with
+    {
+        RequestHeaders = SensitiveDataRedactor.RedactHeaders(request.RequestHeaders, redaction),
+        RequestParams = SensitiveDataRedactor.RedactFields(request.RequestParams, redaction),
+        RequestBody = SensitiveDataRedactor.RedactFields(request.RequestBody, redaction),
+        QueryString = SensitiveDataRedactor.RedactFields(request.QueryString, redaction)
+    };
 
     private NormalizedExceptionEvent Normalize(ExceptionRequest request, ApiKeyContext apiKey, string format, int payloadSize, JsonElement rawPayload)
     {
@@ -99,6 +128,10 @@ public sealed class IngestionNormalizer(IFingerprintService fingerprints) : IIng
             requestInfo?.Referrer,
             requestInfo?.StatusCode,
             request.UserName,
+            request.RequestHeaders,
+            request.RequestParams,
+            request.RequestBody,
+            request.QueryString,
             format,
             payloadSize,
             request.Tags ?? new Dictionary<string, string>(),

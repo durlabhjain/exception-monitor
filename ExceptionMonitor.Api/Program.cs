@@ -21,6 +21,7 @@ var postgresConnectionString = builder.Configuration.GetConnectionString("Postgr
 
 builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Security"));
 builder.Services.Configure<IngestionOptions>(builder.Configuration.GetSection("Ingestion"));
+builder.Services.Configure<RedactionOptions>(builder.Configuration.GetSection("Redaction"));
 builder.Services.Configure<NotificationOptions>(builder.Configuration.GetSection("Notifications"));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection("Google"));
